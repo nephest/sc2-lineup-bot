@@ -4,10 +4,14 @@
 package com.nephest.lineup.data.repository;
 
 import com.nephest.lineup.data.Lineup;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface LineupRepository extends JpaRepository<Lineup, UUID> {
+
+  int removeByRevealAtIsBefore(OffsetDateTime revealAt);
+
 }
