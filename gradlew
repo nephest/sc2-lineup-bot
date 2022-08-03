@@ -1,7 +1,6 @@
 #!/bin/sh
 
-#  Copyright (C) 2022 Oleksandr Masniuk
-#  SPDX-License-Identifier: AGPL-3.0-or-later
+
 
 ##############################################################################
 #
