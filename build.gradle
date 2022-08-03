@@ -35,3 +35,8 @@ checkstyle {
     ignoreFailures false
     maxWarnings 0
 }
+
+compileJava {
+    sourceCompatibility = '11'
+    targetCompatibility = '11'
+}
