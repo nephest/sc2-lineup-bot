@@ -3,7 +3,6 @@
 
 package com.nephest.lineup.service;
 
-import com.austinv11.servicer.Service;
 import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
@@ -11,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
