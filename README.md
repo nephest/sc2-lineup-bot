@@ -22,3 +22,8 @@ hood.
       the id is `236695`.
 * Reveal the lineup with the `lineup-reveal` slash command.
 
+## Running
+
+* Set the `discord.token` application property.
+* Use `dev` profile to run a local server `gradle -PbuildProfile=dev bootRun`.
+
