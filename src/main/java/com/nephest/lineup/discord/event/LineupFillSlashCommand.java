@@ -203,6 +203,7 @@ public class LineupFillSlashCommand implements SlashCommand {
     if (lineup == null) {
       return evt.createFollowup("`" + uuid + "` lineup not found");
     }
+    playerRepository.removeAllByLineupIdAndDiscordUserId(lineup.getId(), discordUserId);
     RuleSet ruleSet = lineup.getRuleSet();
 
     //parse lineup

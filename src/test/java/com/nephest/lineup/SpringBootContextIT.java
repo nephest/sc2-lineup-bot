@@ -6,11 +6,15 @@ package com.nephest.lineup;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.nephest.lineup.data.Lineup;
+import com.nephest.lineup.data.Player;
+import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.RuleSet;
 import com.nephest.lineup.data.repository.LineupRepository;
+import com.nephest.lineup.data.repository.PlayerRepository;
 import com.nephest.lineup.data.repository.RuleSetRepository;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +31,9 @@ public class SpringBootContextIT {
   @Autowired
   private RuleSetRepository ruleSetRepository;
 
+  @Autowired
+  private PlayerRepository playerRepository;
+
   @Test
   public void verifyJpaConfig() {
     verifyModifyingMethods();
@@ -37,12 +44,19 @@ public class SpringBootContextIT {
    */
   private void verifyModifyingMethods() {
     RuleSet ruleSet = ruleSetRepository.save(new RuleSet("lol", 120));
-    lineupRepository.save(new Lineup(
+    Lineup lineup = lineupRepository.save(new Lineup(
         ruleSet,
         1,
         OffsetDateTime.now().minusDays(1),
         new ArrayList<>()
     ));
+    playerRepository.saveAll(List.of(
+        new Player(1L, lineup, 1, "data", Race.ZERG),
+        new Player(1L, lineup, 2, "data", Race.ZERG),
+        new Player(2L, lineup, 1, "data", Race.ZERG)
+    ));
+
+    assertEquals(2, playerRepository.removeAllByLineupIdAndDiscordUserId(lineup.getId(), 1L));
     assertEquals(1, lineupRepository.removeByRevealAtIsBefore(OffsetDateTime.now()));
   }
 

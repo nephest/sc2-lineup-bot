@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,6 +46,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.convert.ConversionService;
@@ -199,10 +201,21 @@ public class LineupFillSlashCommandTest {
     switch (status) {
       case SUCCESS:
       case UNKNOWN:
-        verify(playerRepository).saveAllAndFlush(any());
+        InOrder inOrder = inOrder(playerRepository);
+        inOrder.verify(playerRepository)
+            .removeAllByLineupIdAndDiscordUserId(
+                data.getPlayer().getLineup().getId(),
+                data.getPlayer().getDiscordUserId()
+            );
+        inOrder.verify(playerRepository).saveAllAndFlush(any());
         assertNull(data.getErrors());
         break;
       case ERROR:
+        verify(playerRepository)
+            .removeAllByLineupIdAndDiscordUserId(
+                data.getPlayer().getLineup().getId(),
+                data.getPlayer().getDiscordUserId()
+            );
         verify(playerRepository, never()).saveAllAndFlush(any());
         assertFalse(data.getErrors().isEmpty());
         break;
