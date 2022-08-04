@@ -8,10 +8,12 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface LineupRepository extends JpaRepository<Lineup, UUID> {
 
+  @Transactional
   int removeByRevealAtIsBefore(OffsetDateTime revealAt);
 
 }
