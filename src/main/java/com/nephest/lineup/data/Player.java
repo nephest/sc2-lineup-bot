@@ -86,7 +86,7 @@ public class Player {
         + ", discordUserId="
         + discordUserId
         + ", lineup="
-        + lineup
+        + lineup.getId()
         + ", slot="
         + slot
         + ", data='"

@@ -31,4 +31,11 @@ public class PlayerTest {
 
   }
 
+  @Test
+  public void whenToString_thenNoStackOverflowErrorIsThrown() {
+    Lineup equalLineup = new Lineup(new RuleSet(), 2, OffsetDateTime.now(), new ArrayList<>());
+    Player player = new Player(1L, equalLineup, 1, "data1", Race.TERRAN);
+    player.toString();
+  }
+
 }
