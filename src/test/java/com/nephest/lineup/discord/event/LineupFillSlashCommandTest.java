@@ -20,10 +20,10 @@ import com.nephest.lineup.data.Region;
 import com.nephest.lineup.data.RuleSet;
 import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
-import com.nephest.lineup.data.repository.LineupRepository;
 import com.nephest.lineup.data.repository.PlayerRepository;
 import com.nephest.lineup.discord.LineupPlayerData;
 import com.nephest.lineup.discord.PlayerStatus;
+import com.nephest.lineup.service.LineupService;
 import com.nephest.lineup.service.PulseApi;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
@@ -61,13 +61,13 @@ public class LineupFillSlashCommandTest {
   private GatewayDiscordClient client;
 
   @Mock
-  private LineupRepository lineupRepository;
-
-  @Mock
   private PlayerRepository playerRepository;
 
   @Mock
   private PulseApi pulseApi;
+
+  @Mock
+  private LineupService lineupService;
 
   @Mock
   private ConversionService conversionService;
@@ -94,9 +94,9 @@ public class LineupFillSlashCommandTest {
   @BeforeEach
   public void beforeEach() {
     cmd = new LineupFillSlashCommand(
-        lineupRepository,
         playerRepository,
         pulseApi,
+        lineupService,
         conversionService
     );
     when(user.getId()).thenReturn(Snowflake.of(987L));
@@ -134,7 +134,8 @@ public class LineupFillSlashCommandTest {
     ruleSet.setId(1L);
     ruleSet.setGamesMin(gamesMin);
     Lineup lineup = new Lineup(ruleSet, length, OffsetDateTime.now(), new ArrayList<>());
-    when(lineupRepository.findById(id)).thenReturn(Optional.of(lineup));
+    lineup.setId(id);
+    when(lineupService.findAndClear(id, 987L)).thenReturn(Optional.of(lineup));
   }
 
   private void stubPulse(
@@ -201,9 +202,9 @@ public class LineupFillSlashCommandTest {
     switch (status) {
       case SUCCESS:
       case UNKNOWN:
-        InOrder inOrder = inOrder(playerRepository);
-        inOrder.verify(playerRepository)
-            .removeAllByLineupIdAndDiscordUserId(
+        InOrder inOrder = inOrder(lineupService, playerRepository);
+        inOrder.verify(lineupService)
+            .findAndClear(
                 data.getPlayer().getLineup().getId(),
                 data.getPlayer().getDiscordUserId()
             );
@@ -211,8 +212,8 @@ public class LineupFillSlashCommandTest {
         assertNull(data.getErrors());
         break;
       case ERROR:
-        verify(playerRepository)
-            .removeAllByLineupIdAndDiscordUserId(
+        verify(lineupService)
+            .findAndClear(
                 data.getPlayer().getLineup().getId(),
                 data.getPlayer().getDiscordUserId()
             );

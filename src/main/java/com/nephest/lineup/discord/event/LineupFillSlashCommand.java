@@ -10,11 +10,11 @@ import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.RuleSet;
 import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
-import com.nephest.lineup.data.repository.LineupRepository;
 import com.nephest.lineup.data.repository.PlayerRepository;
 import com.nephest.lineup.discord.DiscordBootstrap;
 import com.nephest.lineup.discord.LineupPlayerData;
 import com.nephest.lineup.discord.PlayerStatus;
+import com.nephest.lineup.service.LineupService;
 import com.nephest.lineup.service.LineupUtil;
 import com.nephest.lineup.service.PulseApi;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
@@ -47,21 +47,21 @@ public class LineupFillSlashCommand implements SlashCommand {
 
   public static final String NAME = "lineup-fill";
 
-  private final LineupRepository lineupRepository;
   private final PlayerRepository playerRepository;
   private final PulseApi pulseApi;
+  private final LineupService lineupService;
   private final ConversionService conversionService;
 
   @Autowired
   public LineupFillSlashCommand(
-      LineupRepository lineupRepository,
       PlayerRepository playerRepository,
       PulseApi pulseApi,
+      LineupService lineupService,
       @Qualifier("discordConversionService") ConversionService conversionService
   ) {
-    this.lineupRepository = lineupRepository;
     this.playerRepository = playerRepository;
     this.pulseApi = pulseApi;
+    this.lineupService = lineupService;
     this.conversionService = conversionService;
   }
 
@@ -199,11 +199,10 @@ public class LineupFillSlashCommand implements SlashCommand {
         ApplicationCommandInteractionOptionValue::asString,
         null
     ).trim();
-    Lineup lineup = lineupRepository.findById(uuid).orElse(null);
+    Lineup lineup = lineupService.findAndClear(uuid, discordUserId).orElse(null);
     if (lineup == null) {
       return evt.createFollowup("`" + uuid + "` lineup not found");
     }
-    playerRepository.removeAllByLineupIdAndDiscordUserId(lineup.getId(), discordUserId);
     RuleSet ruleSet = lineup.getRuleSet();
 
     //parse lineup

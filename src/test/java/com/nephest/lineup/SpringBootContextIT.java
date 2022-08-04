@@ -55,8 +55,6 @@ public class SpringBootContextIT {
         new Player(1L, lineup, 2, "data", Race.ZERG),
         new Player(2L, lineup, 1, "data", Race.ZERG)
     ));
-
-    assertEquals(2, playerRepository.removeAllByLineupIdAndDiscordUserId(lineup.getId(), 1L));
     assertEquals(1, lineupRepository.removeByRevealAtIsBefore(OffsetDateTime.now()));
   }
 
