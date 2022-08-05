@@ -8,6 +8,7 @@ import com.nephest.lineup.data.Lineup;
 import com.nephest.lineup.data.Player;
 import com.nephest.lineup.data.repository.LineupRepository;
 import com.nephest.lineup.discord.DiscordBootstrap;
+import com.nephest.lineup.service.LineupUtil;
 import com.nephest.lineup.service.PulseApi;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
@@ -77,7 +78,7 @@ public class LineupRevealSlashCommand implements SlashCommand {
     if (lineup == null) {
       return evt.createFollowup("`" + uuid + "` lineup not found");
     }
-    String header = LineupFillSlashCommand.getHeader(lineup, conversionService);
+    String header = LineupUtil.getHeader(lineup, conversionService);
     Map<Long, List<Player>> players = lineup.getPlayers()
         .stream()
         .collect(Collectors.groupingBy(Player::getDiscordUserId));
@@ -100,7 +101,7 @@ public class LineupRevealSlashCommand implements SlashCommand {
             e.getValue().get(0).getDiscordUserId()
         )
             + " players**\n"
-            + LineupFillSlashCommand.processPlayers(
+            + LineupUtil.processPlayers(
             e.getValue(),
             lineup.getRuleSet(),
             pulseApi,

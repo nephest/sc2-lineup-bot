@@ -3,11 +3,25 @@
 
 package com.nephest.lineup.service;
 
+import com.nephest.lineup.Util;
+import com.nephest.lineup.data.Lineup;
 import com.nephest.lineup.data.Player;
+import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.RuleSet;
+import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
+import com.nephest.lineup.discord.LineupPlayerData;
+import com.nephest.lineup.discord.PlayerStatus;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.springframework.core.convert.ConversionService;
+import org.springframework.data.util.Pair;
 
 public final class LineupUtil {
 
@@ -67,6 +81,100 @@ public final class LineupUtil {
       errors.add("max mmr: " + summary.getRatingMax());
     }
     return errors;
+  }
+
+  /**
+   * <p>
+   * Converts player list to a discord string. Player may have numerical
+   * {@link Player#getData() data}. Such data is considered pulse id. Players with pulse
+   * ids are verified against the supplied {@code RuleSet}. {@code ConversionService} is used
+   * to convert entities to strings.
+   * Players with no pulse id are treated as simple strings and saved without verifying
+   * their stats.
+   * </p>
+   *
+   * @param players           target players
+   * @param ruleSet           RuleSet to verify against
+   * @param pulseApi          API service
+   * @param conversionService conversion service
+   * @return a pair of Boolean status(false = error, true = ok) and processed String
+   */
+  public static Pair<Boolean, String> processPlayers(
+      List<Player> players,
+      RuleSet ruleSet,
+      PulseApi pulseApi,
+      ConversionService conversionService
+  ) {
+    players.sort(Comparator.comparing(Player::getSlot));
+    //verify pulse players
+    Map<Long, Player> pulsePlayers = players.stream()
+        .filter(p -> Util.isInteger(p.getData()))
+        .collect(Collectors.toMap(p -> Long.parseLong(p.getData()), Function.identity()));
+    Map<Long, List<PlayerSummary>> summaries = pulseApi.getSummaries(
+            ruleSet.getDepth(),
+            pulsePlayers.keySet().toArray(Long[]::new)
+        )
+        .stream()
+        .collect(Collectors.groupingBy(PlayerSummary::getPlayerCharacterId));
+    Map<Long, Map<Race, List<String>>> errors = new HashMap<>();
+    pulsePlayers.entrySet().stream()
+        //get summaries
+        .map(p -> summaries.get(p.getKey())
+            .stream()
+            .filter(s -> s.getRace() == p.getValue().getRace())
+            .findAny()
+            .orElse(null))
+        //verify
+        .forEach(s -> {
+          List<String> curErrors = LineupUtil.checkEligibility(s, ruleSet);
+          if (!curErrors.isEmpty()) {
+            errors.putIfAbsent(s.getPlayerCharacterId(), new EnumMap<>(Race.class));
+            errors.get(s.getPlayerCharacterId()).put(s.getRace(), curErrors);
+          }
+        });
+
+    Map<Long, PlayerCharacter> characters = pulseApi.getCharacters(pulsePlayers.keySet()
+            .toArray(new Long[0]))
+        .stream()
+        .collect(Collectors.toMap(PlayerCharacter::getId, Function.identity()));
+    Map<Player, Long> pulsePlayerIdMap = pulsePlayers.entrySet()
+        .stream()
+        .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+
+    return Pair.of(
+        errors.isEmpty(),
+        players.stream()
+            .map(p -> formatPlayer(p, characters, pulsePlayerIdMap, errors, conversionService))
+            .collect(Collectors.joining(""))
+    );
+  }
+
+  public static String getHeader(
+      Lineup lineup, ConversionService conversionService
+  ) {
+    return "**Ruleset**\n"
+        + conversionService.convert(lineup.getRuleSet(), String.class)
+        + "\n\n"
+        + "**Lineup**\n"
+        + conversionService.convert(lineup, String.class)
+        + "\n\n";
+  }
+
+  public static String formatPlayer(
+      Player player,
+      Map<Long, PlayerCharacter> characters,
+      Map<Player, Long> pulsePlayerIdMap,
+      Map<Long, Map<Race, List<String>>> errors,
+      ConversionService conversionService
+  ) {
+    Long pulseId = pulsePlayerIdMap.get(player);
+    List<String> curErrors = errors.getOrDefault(pulseId, Map.of()).get(player.getRace());
+    PlayerStatus status = pulseId == null
+        ? PlayerStatus.UNKNOWN
+        : curErrors == null ? PlayerStatus.SUCCESS : PlayerStatus.ERROR;
+    PlayerCharacter character = pulseId == null ? null : characters.get(pulseId);
+    LineupPlayerData data = new LineupPlayerData(player, character, status, curErrors);
+    return conversionService.convert(data, String.class);
   }
 
 }
