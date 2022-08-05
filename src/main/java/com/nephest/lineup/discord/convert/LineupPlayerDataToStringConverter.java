@@ -55,12 +55,11 @@ public class LineupPlayerDataToStringConverter implements Converter<LineupPlayer
     List<String> errors = source.getErrors();
     PlayerStatus status = pulseId == null
         ? PlayerStatus.UNKNOWN
-        : errors == null ? PlayerStatus.SUCCESS : PlayerStatus.ERROR;
+        : errors.isEmpty() ? PlayerStatus.SUCCESS : PlayerStatus.ERROR;
     StringBuilder sb = new StringBuilder();
-    sb.append(formatPlayer(source.getPlayer(), playerCharacter, discordBootstrap, status))
-        .append(" ");
-    if (errors != null) {
-      sb.append(String.join(",", errors)).append("\n");
+    sb.append(formatPlayer(source.getPlayer(), playerCharacter, discordBootstrap, status));
+    if (!errors.isEmpty()) {
+      sb.append(" ").append(String.join(",", errors));
     }
     return sb.toString();
   }

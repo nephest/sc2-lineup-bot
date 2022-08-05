@@ -45,7 +45,21 @@ public class LineupPlayerDataToStringConverterTest {
     when(discordBootstrap.getRaceEmojiOrName(Race.ZERG)).thenReturn("zerg");
     String expectedResult = ":x: `1` \uD83C\uDDEA\uD83C\uDDFA zerg"
         + "[**name**](https://www.nephest.com/sc2/?type=character&id=987&m=1#player-stats-mmr ) "
-        + "error1,error2\n";
+        + "error1,error2";
+    assertEquals(expectedResult, converter.convert(data));
+  }
+
+  @Test
+  public void whenValidPlayers_thenShowCheckmark() {
+    LineupPlayerData data = new LineupPlayerData(
+        new Player(1L, new Lineup(), 1, "123", Race.ZERG),
+        new PlayerCharacter(987L, 1L, Region.EU, 1, 1L, "name#1", null),
+        PlayerStatus.SUCCESS,
+        List.of()
+    );
+    when(discordBootstrap.getRaceEmojiOrName(Race.ZERG)).thenReturn("zerg");
+    String expectedResult = ":white_check_mark: `1` \uD83C\uDDEA\uD83C\uDDFA zerg"
+        + "[**name**](https://www.nephest.com/sc2/?type=character&id=987&m=1#player-stats-mmr )";
     assertEquals(expectedResult, converter.convert(data));
   }
 

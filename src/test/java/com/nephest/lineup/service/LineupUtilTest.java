@@ -4,20 +4,27 @@
 package com.nephest.lineup.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.nephest.lineup.data.Lineup;
 import com.nephest.lineup.data.Player;
 import com.nephest.lineup.data.Race;
+import com.nephest.lineup.data.Region;
 import com.nephest.lineup.data.RuleSet;
+import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
 import com.nephest.lineup.discord.LineupPlayerData;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -172,4 +179,70 @@ public class LineupUtilTest {
     assertEquals("Player is inactive(no games played)", data.getErrors().get(0));
   }
 
+  @Test
+  public void whenDuplicatePlayersSupplied_thenNoExceptionIsThrown() {
+    RuleSet ruleSet = new RuleSet("name", 120);
+    Lineup lineup = new Lineup(ruleSet, 6, OffsetDateTime.now().plusDays(1), new ArrayList<>());
+    List<Player> players = List.of(
+        //duplicate pulse players
+        new Player(1L, lineup, 1, "1", Race.ZERG),
+        new Player(1L, lineup, 2, "1", Race.ZERG),
+        new Player(1L, lineup, 3, "1", Race.TERRAN),
+        new Player(1L, lineup, 4, "1", Race.RANDOM),
+        //duplicate text players
+        new Player(1L, lineup, 5, "name", Race.PROTOSS),
+        new Player(1L, lineup, 6, "name", Race.PROTOSS)
+    );
+
+    //random is missing to test a corner case
+    when(pulseApi.getSummaries(120, 1L)).thenReturn(List.of(
+        new PlayerSummary(1L, Race.ZERG, 1, 1, 1, 1, 1),
+        new PlayerSummary(1L, Race.TERRAN, 1, 1, 1, 1, 1)
+    ));
+
+    when(pulseApi.getCharacters(1L)).thenReturn(List.of(new PlayerCharacter(
+        1L,
+        1L,
+        Region.EU,
+        1,
+        1L,
+        "name",
+        null
+    )));
+
+    Pair<Boolean, String> result = LineupUtil.processPlayers(
+        new ArrayList<>(players),
+        ruleSet,
+        pulseApi,
+        conversionService
+    );
+    //false because random race is missing in pulse summaries
+    assertEquals(false, result.getFirst());
+    verify(conversionService, times(6)).convert(conversionCaptor.capture(), eq(String.class));
+    List<LineupPlayerData> data = conversionCaptor.getAllValues()
+        .stream()
+        .map(e -> e instanceof LineupPlayerData ? (LineupPlayerData) e : null)
+        .filter(Objects::nonNull)
+        .sorted(Comparator.comparing(l -> l.getPlayer().getSlot()))
+        .collect(Collectors.toList());
+    assertEquals(6, data.size());
+    //verify that all data is properly processed
+    for (int i = 0; i < 6; i++) {
+      //ix 3 is missing random, ix 3 is the last pulse player
+      verifyPlayerData(data.get(i), i + 1, i != 3, players.get(i).getRace(), i < 4);
+    }
+  }
+
+  private void verifyPlayerData(
+      LineupPlayerData data, int slot, boolean status, Race race, boolean pulse
+  ) {
+    assertEquals(slot, data.getPlayer().getSlot());
+    assertEquals(status, data.getErrors().isEmpty());
+    if (pulse) {
+      assertEquals(1L, data.getPlayerCharacter().getId());
+    } else {
+      assertNull(data.getPlayerCharacter());
+    }
+    assertEquals(race, data.getPlayer().getRace());
+  }
 }

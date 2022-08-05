@@ -231,7 +231,7 @@ public class LineupFillSlashCommandTest {
                 data.getPlayer().getDiscordUserId()
             );
         inOrder.verify(playerRepository).saveAllAndFlush(any());
-        assertNull(data.getErrors());
+        assertTrue(data.getErrors().isEmpty());
         break;
       case ERROR:
         verify(nestedSpy)

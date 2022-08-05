@@ -108,9 +108,9 @@ public final class LineupUtil {
   ) {
     players.sort(Comparator.comparing(Player::getSlot));
     //verify pulse players
-    Map<Long, Player> pulsePlayers = players.stream()
+    Map<Long, List<Player>> pulsePlayers = players.stream()
         .filter(p -> Util.isInteger(p.getData()))
-        .collect(Collectors.toMap(p -> Long.parseLong(p.getData()), Function.identity()));
+        .collect(Collectors.groupingBy(p -> Long.parseLong(p.getData())));
     Map<Long, List<PlayerSummary>> summaries = pulseApi.getSummaries(
             ruleSet.getDepth(),
             pulsePlayers.keySet().toArray(Long[]::new)
@@ -119,13 +119,14 @@ public final class LineupUtil {
         .collect(Collectors.groupingBy(PlayerSummary::getPlayerCharacterId));
     Map<Long, Map<Race, List<String>>> errors = new HashMap<>();
     pulsePlayers.entrySet().stream()
+        .flatMap(e -> e.getValue().stream().map(p -> Pair.of(e.getKey(), p)))
         //get summaries
-        .map(p -> summaries.getOrDefault(p.getKey(), List.of())
+        .map(p -> summaries.getOrDefault(p.getFirst(), List.of())
             .stream()
-            .filter(s -> s.getRace() == p.getValue().getRace())
-            .map(s -> new PlayerSummaryMeta(p.getValue(), p.getKey(), s))
+            .filter(s -> s.getRace() == p.getSecond().getRace())
+            .map(s -> new PlayerSummaryMeta(p.getSecond(), p.getFirst(), s))
             .findAny()
-            .orElse(new PlayerSummaryMeta(p.getValue(), p.getKey(), null)))
+            .orElse(new PlayerSummaryMeta(p.getSecond(), p.getFirst(), null)))
         //verify
         .forEach(s -> {
           List<String> curErrors = LineupUtil.checkEligibility(s.getPlayerSummary(), ruleSet);
@@ -141,7 +142,8 @@ public final class LineupUtil {
         .collect(Collectors.toMap(PlayerCharacter::getId, Function.identity()));
     Map<Player, Long> pulsePlayerIdMap = pulsePlayers.entrySet()
         .stream()
-        .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+        .flatMap(e -> e.getValue().stream().map(p -> Pair.of(e.getKey(), p)))
+        .collect(Collectors.toMap(Pair::getSecond, Pair::getFirst, (id1, id2) -> id1));
 
     return Pair.of(
         errors.isEmpty(),
@@ -170,10 +172,11 @@ public final class LineupUtil {
       ConversionService conversionService
   ) {
     Long pulseId = pulsePlayerIdMap.get(player);
-    List<String> curErrors = errors.getOrDefault(pulseId, Map.of()).get(player.getRace());
+    List<String> curErrors = errors.getOrDefault(pulseId, Map.of())
+        .getOrDefault(player.getRace(), List.of());
     PlayerStatus status = pulseId == null
         ? PlayerStatus.UNKNOWN
-        : curErrors == null ? PlayerStatus.SUCCESS : PlayerStatus.ERROR;
+        : curErrors.isEmpty() ? PlayerStatus.SUCCESS : PlayerStatus.ERROR;
     PlayerCharacter character = pulseId == null ? null : characters.get(pulseId);
     LineupPlayerData data = new LineupPlayerData(player, character, status, curErrors);
     return conversionService.convert(data, String.class);
