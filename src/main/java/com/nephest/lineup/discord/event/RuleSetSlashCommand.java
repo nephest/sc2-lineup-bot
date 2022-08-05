@@ -176,7 +176,7 @@ public class RuleSetSlashCommand implements SlashCommand {
         mmrMaxMax == null ? null : mmrMaxMax.intValue()
     );
     ruleSetRepository.save(ruleSet);
-    return evt.createFollowup("Created ruleset:\n"
+    return evt.createFollowup(DiscordBootstrap.coloredTextBlock("Created ruleset:", true)
         + conversionService.convert(ruleSet, String.class));
   }
 

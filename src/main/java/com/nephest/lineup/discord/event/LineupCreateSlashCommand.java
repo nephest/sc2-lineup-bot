@@ -110,7 +110,7 @@ public class LineupCreateSlashCommand implements SlashCommand {
         new ArrayList<>()
     );
     lineupRepository.save(lineup);
-    return evt.createFollowup("Lineup created:\n\n"
+    return evt.createFollowup(DiscordBootstrap.coloredTextBlock("Lineup created:", true)
         + "Ruleset: \n" + conversionService.convert(ruleSet, String.class) + "\n"
         + "Lineup: \n" + conversionService.convert(lineup, String.class));
   }

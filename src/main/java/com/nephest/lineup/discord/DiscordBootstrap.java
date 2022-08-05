@@ -77,6 +77,11 @@ public class DiscordBootstrap {
       PlayerStatus.UNKNOWN,
       ":grey_question:"
   );
+
+  public static final String DIFF_TEXT_BLOCK_TEMPLATE =
+      "```diff\n"
+          + "%1$s\n"
+          + "```\n";
   private static final Logger LOG = LoggerFactory.getLogger(DiscordBootstrap.class);
   private final Map<Race, String> raceEmojis;
 
@@ -359,6 +364,10 @@ public class DiscordBootstrap {
 
   public String getRaceEmojiOrName(Race race) {
     return raceEmojis.getOrDefault(race, race.getName());
+  }
+
+  public static String coloredTextBlock(String text, boolean positive) {
+    return String.format(DIFF_TEXT_BLOCK_TEMPLATE, (positive ? "+" : "-") + text);
   }
 
 }

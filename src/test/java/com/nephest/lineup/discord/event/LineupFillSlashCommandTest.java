@@ -26,6 +26,7 @@ import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
 import com.nephest.lineup.data.repository.LineupRepository;
 import com.nephest.lineup.data.repository.PlayerRepository;
+import com.nephest.lineup.discord.DiscordBootstrap;
 import com.nephest.lineup.discord.LineupPlayerData;
 import com.nephest.lineup.discord.PlayerStatus;
 import com.nephest.lineup.service.PulseApi;
@@ -247,7 +248,8 @@ public class LineupFillSlashCommandTest {
     }
 
     String response = responseCaptor.getValue();
-    assertEquals(header + "\n"
+    header = DiscordBootstrap.coloredTextBlock(header, status != PlayerStatus.ERROR);
+    assertEquals(header
 
         + "**Ruleset**\n" + "RuleSet\n\n"
 
@@ -265,7 +267,10 @@ public class LineupFillSlashCommandTest {
     verify(playerRepository, never()).saveAllAndFlush(any());
 
     String response = responseCaptor.getValue();
-    assertEquals("Can't save the lineup due to ruleset violations\n"
+    assertEquals(DiscordBootstrap.coloredTextBlock(
+        "Can't save the lineup due to ruleset violations",
+        false
+    )
         + "**Players required:** 2\n"
         + "**Players received:** 1\n", response);
   }
@@ -331,7 +336,10 @@ public class LineupFillSlashCommandTest {
     verify(playerRepository, never()).saveAllAndFlush(any());
     //error message is returned
     assertEquals(
-        "Can't save the lineup because it might already be revealed.\n"
+        DiscordBootstrap.coloredTextBlock(
+            "Can't save the lineup because it might already be revealed.",
+            false
+        )
             + "**Ruleset**\n" + "RuleSet\n\n"
             + "**Lineup**\n" + "Lineup\n\n",
         pair.getSecond()

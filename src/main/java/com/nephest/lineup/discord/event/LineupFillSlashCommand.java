@@ -116,15 +116,21 @@ public class LineupFillSlashCommand implements SlashCommand {
     try {
       players = parseLineup(discordUserId, lineup, lineupStr);
     } catch (ParseException e) {
-      return evt.createFollowup("Invalid lineup. Slot "
-          + e.getErrorOffset()
-          + ". "
-          + e.getMessage());
+      String resp = DiscordBootstrap.coloredTextBlock(
+          "Invalid lineup. Slot "
+              + e.getErrorOffset()
+              + ". "
+              + e.getMessage(),
+          false
+      );
+      return evt.createFollowup(resp);
     }
     if (players.size() != lineup.getLength()) {
-      return evt.createFollowup("Can't save the lineup due to ruleset violations\n"
-          + "**Players required:** " + lineup.getLength() + "\n"
-          + "**Players received:** " + players.size() + "\n"
+      return evt.createFollowup(
+          DiscordBootstrap.coloredTextBlock(
+              "Can't save the lineup due to ruleset violations", false)
+              + "**Players required:** " + lineup.getLength() + "\n"
+              + "**Players received:** " + players.size() + "\n"
       );
     }
 
@@ -135,8 +141,11 @@ public class LineupFillSlashCommand implements SlashCommand {
         conversionService
     );
     String result = playerResult.getFirst()
-        ? "Lineup filled:\n"
-        : "Can't save the lineup due to ruleset violations\n";
+        ? DiscordBootstrap.coloredTextBlock("Lineup filled:", true)
+        : DiscordBootstrap.coloredTextBlock(
+            "Can't save the lineup due to ruleset violations",
+            false
+        );
 
     if (playerResult.getFirst()) {
       playerRepository.saveAllAndFlush(players);
@@ -202,7 +211,10 @@ public class LineupFillSlashCommand implements SlashCommand {
     if (lineup.getRevealAt().isBefore(OffsetDateTime.now())) {
       return new NullablePair<>(
           lineup,
-          "Can't save the lineup because it might already be revealed.\n"
+          DiscordBootstrap.coloredTextBlock(
+              "Can't save the lineup because it might already be revealed.",
+              false
+          )
               + LineupUtil.getHeader(lineup, conversionService)
       );
     }
