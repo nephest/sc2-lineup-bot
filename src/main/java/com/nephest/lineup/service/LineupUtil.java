@@ -147,7 +147,7 @@ public final class LineupUtil {
         errors.isEmpty(),
         players.stream()
             .map(p -> formatPlayer(p, characters, pulsePlayerIdMap, errors, conversionService))
-            .collect(Collectors.joining(""))
+            .collect(Collectors.joining("\n"))
     );
   }
 
