@@ -8,9 +8,10 @@ import com.nephest.lineup.data.Lineup;
 import com.nephest.lineup.data.Player;
 import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.RuleSet;
+import com.nephest.lineup.data.misc.NullablePair;
+import com.nephest.lineup.data.repository.LineupRepository;
 import com.nephest.lineup.data.repository.PlayerRepository;
 import com.nephest.lineup.discord.DiscordBootstrap;
-import com.nephest.lineup.service.LineupService;
 import com.nephest.lineup.service.LineupUtil;
 import com.nephest.lineup.service.PulseApi;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
@@ -23,12 +24,15 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 @Component
@@ -37,21 +41,25 @@ public class LineupFillSlashCommand implements SlashCommand {
 
   public static final String NAME = "lineup-fill";
 
+  private final LineupRepository lineupRepository;
   private final PlayerRepository playerRepository;
   private final PulseApi pulseApi;
-  private final LineupService lineupService;
   private final ConversionService conversionService;
 
   @Autowired
+  @Lazy
+  private LineupFillSlashCommand lineupFillSlashCommand;
+
+  @Autowired
   public LineupFillSlashCommand(
+      LineupRepository lineupRepository,
       PlayerRepository playerRepository,
       PulseApi pulseApi,
-      LineupService lineupService,
       @Qualifier("discordConversionService") ConversionService conversionService
   ) {
+    this.lineupRepository = lineupRepository;
     this.playerRepository = playerRepository;
     this.pulseApi = pulseApi;
-    this.lineupService = lineupService;
     this.conversionService = conversionService;
   }
 
@@ -95,10 +103,11 @@ public class LineupFillSlashCommand implements SlashCommand {
         ApplicationCommandInteractionOptionValue::asString,
         null
     ).trim();
-    Lineup lineup = lineupService.findAndClear(uuid, discordUserId).orElse(null);
-    if (lineup == null) {
-      return evt.createFollowup("`" + uuid + "` lineup not found");
+    NullablePair<Lineup, String> lineupPair = lineupFillSlashCommand.getLineup(uuid, discordUserId);
+    if (lineupPair.getSecond() != null) {
+      return evt.createFollowup(lineupPair.getSecond());
     }
+    Lineup lineup = lineupPair.getFirst();
     RuleSet ruleSet = lineup.getRuleSet();
 
     //parse lineup
@@ -139,6 +148,10 @@ public class LineupFillSlashCommand implements SlashCommand {
         + playerResult.getSecond() + "\n");
   }
 
+  protected void setLineupFillSlashCommand(LineupFillSlashCommand lineupFillSlashCommand) {
+    this.lineupFillSlashCommand = lineupFillSlashCommand;
+  }
+
   private List<Player> parseLineup(
       Long discordUserId, Lineup lineup, String lineupStr
   ) throws ParseException {
@@ -165,6 +178,30 @@ public class LineupFillSlashCommand implements SlashCommand {
       throw new ParseException("Invalid race: " + split[1], slot);
     }
     return new Player(discordUserId, lineup, slot, data, race);
+  }
+
+  /**
+   * <p>
+   * Finds a lineup and removes all users of a discord user.
+   * </p>
+   *
+   * @param uuid          Lineup id
+   * @param discordUserId Discord user id
+   * @return A pair of processed {@code Lineup} and message {@code String}. Message string is an
+   *     error string, so callers should create an event followup with this string if it is not
+   *     null.
+   */
+  @Transactional
+  public NullablePair<Lineup, String> getLineup(UUID uuid, Long discordUserId) {
+    Lineup lineup = lineupRepository.findById(uuid).orElse(null);
+    if (lineup == null) {
+      return new NullablePair<>(lineup, "`" + uuid + "` lineup not found");
+    }
+    lineup.getPlayers().stream()
+        .filter(p -> p.getDiscordUserId().equals(discordUserId))
+        .collect(Collectors.toList())
+        .forEach(lineup::removePlayer);
+    return new NullablePair<>(lineup, null);
   }
 
   @Override

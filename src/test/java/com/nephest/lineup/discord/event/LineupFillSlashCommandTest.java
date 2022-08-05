@@ -6,24 +6,28 @@ package com.nephest.lineup.discord.event;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.nephest.lineup.data.Lineup;
+import com.nephest.lineup.data.Player;
 import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.Region;
 import com.nephest.lineup.data.RuleSet;
+import com.nephest.lineup.data.misc.NullablePair;
 import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
+import com.nephest.lineup.data.repository.LineupRepository;
 import com.nephest.lineup.data.repository.PlayerRepository;
 import com.nephest.lineup.discord.LineupPlayerData;
 import com.nephest.lineup.discord.PlayerStatus;
-import com.nephest.lineup.service.LineupService;
 import com.nephest.lineup.service.PulseApi;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
@@ -61,13 +65,13 @@ public class LineupFillSlashCommandTest {
   private GatewayDiscordClient client;
 
   @Mock
+  private LineupRepository lineupRepository;
+
+  @Mock
   private PlayerRepository playerRepository;
 
   @Mock
   private PulseApi pulseApi;
-
-  @Mock
-  private LineupService lineupService;
 
   @Mock
   private ConversionService conversionService;
@@ -85,6 +89,7 @@ public class LineupFillSlashCommandTest {
   private ArgumentCaptor<Object> lineupPlayerDataArgumentCaptor;
 
   private LineupFillSlashCommand cmd;
+  private LineupFillSlashCommand nestedSpy;
 
   public static void stubConversion(ConversionService conversionService) {
     when(conversionService.convert(any(), eq(String.class)))
@@ -94,11 +99,22 @@ public class LineupFillSlashCommandTest {
   @BeforeEach
   public void beforeEach() {
     cmd = new LineupFillSlashCommand(
+        lineupRepository,
         playerRepository,
         pulseApi,
-        lineupService,
         conversionService
     );
+    LineupFillSlashCommand lineupFillSlashCommand = new LineupFillSlashCommand(
+        lineupRepository,
+        playerRepository,
+        pulseApi,
+        conversionService
+    );
+    nestedSpy = spy(lineupFillSlashCommand);
+    cmd.setLineupFillSlashCommand(nestedSpy);
+  }
+
+  private void stubEvent() {
     when(user.getId()).thenReturn(Snowflake.of(987L));
     when(interaction.getUser()).thenReturn(user);
     when(evt.getInteraction()).thenReturn(interaction);
@@ -107,6 +123,7 @@ public class LineupFillSlashCommandTest {
   private void stubBasic(
       int gamesMin, int length, boolean pulse
   ) {
+    stubEvent();
     UUID id = UUID.randomUUID();
     when(evt.getOption("id")).thenReturn(Optional.of(new ApplicationCommandInteractionOption(
         client,
@@ -135,7 +152,7 @@ public class LineupFillSlashCommandTest {
     ruleSet.setGamesMin(gamesMin);
     Lineup lineup = new Lineup(ruleSet, length, OffsetDateTime.now(), new ArrayList<>());
     lineup.setId(id);
-    when(lineupService.findAndClear(id, 987L)).thenReturn(Optional.of(lineup));
+    when(lineupRepository.findById(id)).thenReturn(Optional.of(lineup));
   }
 
   private void stubPulse(
@@ -202,9 +219,9 @@ public class LineupFillSlashCommandTest {
     switch (status) {
       case SUCCESS:
       case UNKNOWN:
-        InOrder inOrder = inOrder(lineupService, playerRepository);
-        inOrder.verify(lineupService)
-            .findAndClear(
+        InOrder inOrder = inOrder(nestedSpy, playerRepository);
+        inOrder.verify(nestedSpy)
+            .getLineup(
                 data.getPlayer().getLineup().getId(),
                 data.getPlayer().getDiscordUserId()
             );
@@ -212,8 +229,8 @@ public class LineupFillSlashCommandTest {
         assertNull(data.getErrors());
         break;
       case ERROR:
-        verify(lineupService)
-            .findAndClear(
+        verify(nestedSpy)
+            .getLineup(
                 data.getPlayer().getLineup().getId(),
                 data.getPlayer().getDiscordUserId()
             );
@@ -246,6 +263,32 @@ public class LineupFillSlashCommandTest {
     assertEquals("Can't save the lineup due to ruleset violations\n"
         + "**Players required:** 2\n"
         + "**Players received:** 1\n", response);
+  }
+
+  @Test
+  public void whenGetLineup_thenRemovePlayersOfDiscordUser() {
+    Lineup lineup = new Lineup(
+        new RuleSet(),
+        1,
+        OffsetDateTime.now().minusDays(1),
+        new ArrayList<>()
+    );
+    lineup.setPlayers(new ArrayList<>(List.of(
+        new Player(1L, lineup, 1, "data", Race.ZERG),
+        new Player(1L, lineup, 2, "data", Race.ZERG),
+        new Player(2L, lineup, 1, "data", Race.ZERG)
+    )));
+    UUID uuid = UUID.randomUUID();
+    when(lineupRepository.findById(uuid)).thenReturn(Optional.of(lineup));
+
+    NullablePair<Lineup, String> pair = cmd.getLineup(uuid, 1L);
+    assertEquals(lineup, pair.getFirst());
+    assertNull(pair.getSecond());
+    assertTrue(pair.getFirst()
+        .getPlayers()
+        .stream()
+        .noneMatch(p -> p.getDiscordUserId().equals(1L))
+        && pair.getFirst().getPlayers().stream().allMatch(p -> p.getDiscordUserId().equals(2L)));
   }
 
 }
