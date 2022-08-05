@@ -150,7 +150,12 @@ public class LineupFillSlashCommandTest {
     RuleSet ruleSet = new RuleSet("name", 120);
     ruleSet.setId(1L);
     ruleSet.setGamesMin(gamesMin);
-    Lineup lineup = new Lineup(ruleSet, length, OffsetDateTime.now(), new ArrayList<>());
+    Lineup lineup = new Lineup(
+        ruleSet,
+        length,
+        OffsetDateTime.now().plusDays(1),
+        new ArrayList<>()
+    );
     lineup.setId(id);
     when(lineupRepository.findById(id)).thenReturn(Optional.of(lineup));
   }
@@ -270,7 +275,7 @@ public class LineupFillSlashCommandTest {
     Lineup lineup = new Lineup(
         new RuleSet(),
         1,
-        OffsetDateTime.now().minusDays(1),
+        OffsetDateTime.now().plusDays(1),
         new ArrayList<>()
     );
     lineup.setPlayers(new ArrayList<>(List.of(
@@ -289,6 +294,48 @@ public class LineupFillSlashCommandTest {
         .stream()
         .noneMatch(p -> p.getDiscordUserId().equals(1L))
         && pair.getFirst().getPlayers().stream().allMatch(p -> p.getDiscordUserId().equals(2L)));
+  }
+
+  @Test
+  public void whenFillRevealedLineup_thenShowError() {
+    stubConversion(conversionService);
+    Lineup lineup = new Lineup(
+        new RuleSet(),
+        1,
+        OffsetDateTime.now().minusDays(1),
+        new ArrayList<>()
+    );
+    lineup.setPlayers(new ArrayList<>(List.of(
+        new Player(1L, lineup, 1, "data", Race.ZERG),
+        new Player(1L, lineup, 2, "data", Race.ZERG),
+        new Player(2L, lineup, 1, "data", Race.ZERG)
+    )));
+    UUID uuid = UUID.randomUUID();
+    lineup.setId(uuid);
+    when(lineupRepository.findById(uuid)).thenReturn(Optional.of(lineup));
+
+    NullablePair<Lineup, String> pair = cmd.getLineup(uuid, 1L);
+    assertEquals(lineup, pair.getFirst());
+    //players are not removed
+    assertTrue(pair.getFirst()
+        .getPlayers()
+        .stream()
+        .filter(p -> p.getDiscordUserId().equals(1L))
+        .count() == 2
+        && pair.getFirst()
+        .getPlayers()
+        .stream()
+        .filter(p -> p.getDiscordUserId().equals(2L))
+        .count() == 1);
+    //lineup is not filled
+    verify(playerRepository, never()).saveAllAndFlush(any());
+    //error message is returned
+    assertEquals(
+        "Can't save the lineup because it might already be revealed.\n"
+            + "**Ruleset**\n" + "RuleSet\n\n"
+            + "**Lineup**\n" + "Lineup\n\n",
+        pair.getSecond()
+    );
   }
 
 }

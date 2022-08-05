@@ -21,6 +21,7 @@ import discord4j.core.object.entity.Message;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ImmutableApplicationCommandRequest;
 import java.text.ParseException;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -182,7 +183,8 @@ public class LineupFillSlashCommand implements SlashCommand {
 
   /**
    * <p>
-   * Finds a lineup and removes all users of a discord user.
+   * Finds a lineup, verifies that is can be filled, and removes all users of a discord user. All is
+   * done within a transaction.
    * </p>
    *
    * @param uuid          Lineup id
@@ -196,6 +198,13 @@ public class LineupFillSlashCommand implements SlashCommand {
     Lineup lineup = lineupRepository.findById(uuid).orElse(null);
     if (lineup == null) {
       return new NullablePair<>(lineup, "`" + uuid + "` lineup not found");
+    }
+    if (lineup.getRevealAt().isBefore(OffsetDateTime.now())) {
+      return new NullablePair<>(
+          lineup,
+          "Can't save the lineup because it might already be revealed.\n"
+              + LineupUtil.getHeader(lineup, conversionService)
+      );
     }
     lineup.getPlayers().stream()
         .filter(p -> p.getDiscordUserId().equals(discordUserId))
