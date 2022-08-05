@@ -5,17 +5,27 @@ package com.nephest.lineup.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.nephest.lineup.data.Lineup;
 import com.nephest.lineup.data.Player;
 import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.RuleSet;
 import com.nephest.lineup.data.pulse.PlayerSummary;
+import com.nephest.lineup.discord.LineupPlayerData;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.convert.ConversionService;
+import org.springframework.data.util.Pair;
 import org.springframework.web.client.RestTemplate;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,6 +35,15 @@ public class LineupUtilTest {
   private final Player player = new Player(1L, lineup, 1, "2", Race.ZERG);
   @Mock
   private RestTemplate restTemplate;
+
+  @Mock
+  private PulseApi pulseApi;
+
+  @Mock
+  private ConversionService conversionService;
+
+  @Captor
+  private ArgumentCaptor<Object> conversionCaptor;
 
   @Test
   public void testMinGamesPlayed() {
@@ -129,6 +148,28 @@ public class LineupUtilTest {
     lineup.setRuleSet(ruleSet2);
     List<String> errors2 = LineupUtil.checkEligibility(player, summary);
     assertTrue(errors2.isEmpty());
+  }
+
+  @Test
+  public void whenNoSummaryIsFound_thenAddCorrespondingError() {
+    Player player = new Player(1L, new Lineup(), 1, "2", Race.ZERG);
+    when(pulseApi.getSummaries(120, 2L)).thenReturn(List.of());
+    Pair<Boolean, String> result = LineupUtil.processPlayers(
+        new ArrayList<>(List.of(player)),
+        new RuleSet("ruleset", 120),
+        pulseApi,
+        conversionService
+    );
+    assertEquals(false, result.getFirst());
+    verify(conversionService).convert(conversionCaptor.capture(), eq(String.class));
+    LineupPlayerData data = conversionCaptor.getAllValues()
+        .stream()
+        .map(e -> e instanceof LineupPlayerData ? (LineupPlayerData) e : null)
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElseThrow();
+    assertEquals(1, data.getErrors().size());
+    assertEquals("Player is inactive(no games played)", data.getErrors().get(0));
   }
 
 }

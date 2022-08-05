@@ -10,6 +10,7 @@ import com.nephest.lineup.data.Race;
 import com.nephest.lineup.data.RuleSet;
 import com.nephest.lineup.data.pulse.PlayerCharacter;
 import com.nephest.lineup.data.pulse.PlayerSummary;
+import com.nephest.lineup.data.pulse.PlayerSummaryMeta;
 import com.nephest.lineup.discord.LineupPlayerData;
 import com.nephest.lineup.discord.PlayerStatus;
 import java.util.ArrayList;
@@ -119,17 +120,18 @@ public final class LineupUtil {
     Map<Long, Map<Race, List<String>>> errors = new HashMap<>();
     pulsePlayers.entrySet().stream()
         //get summaries
-        .map(p -> summaries.get(p.getKey())
+        .map(p -> summaries.getOrDefault(p.getKey(), List.of())
             .stream()
             .filter(s -> s.getRace() == p.getValue().getRace())
+            .map(s -> new PlayerSummaryMeta(p.getValue(), p.getKey(), s))
             .findAny()
-            .orElse(null))
+            .orElse(new PlayerSummaryMeta(p.getValue(), p.getKey(), null)))
         //verify
         .forEach(s -> {
-          List<String> curErrors = LineupUtil.checkEligibility(s, ruleSet);
+          List<String> curErrors = LineupUtil.checkEligibility(s.getPlayerSummary(), ruleSet);
           if (!curErrors.isEmpty()) {
-            errors.putIfAbsent(s.getPlayerCharacterId(), new EnumMap<>(Race.class));
-            errors.get(s.getPlayerCharacterId()).put(s.getRace(), curErrors);
+            errors.putIfAbsent(s.getPulseId(), new EnumMap<>(Race.class));
+            errors.get(s.getPulseId()).put(s.getPlayer().getRace(), curErrors);
           }
         });
 
