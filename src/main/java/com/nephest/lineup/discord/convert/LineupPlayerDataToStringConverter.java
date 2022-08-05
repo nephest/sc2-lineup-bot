@@ -32,9 +32,9 @@ public class LineupPlayerDataToStringConverter implements Converter<LineupPlayer
         ? player.getData()
         : "[**"
             + character.getName().substring(0, character.getName().indexOf("#"))
-            + "**]("
+            + "**](<"
             + String.format(LineupUtil.PULSE_CHARACTER_LINK_TEMPLATE, character.getId())
-            + " )";
+            + ">)";
 
     StringBuilder sb = new StringBuilder();
     sb.append(DiscordBootstrap.STATUS_EMOJIS.get(status))
