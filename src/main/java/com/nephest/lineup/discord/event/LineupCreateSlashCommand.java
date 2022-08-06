@@ -3,6 +3,7 @@
 
 package com.nephest.lineup.discord.event;
 
+import com.nephest.lineup.Util;
 import com.nephest.lineup.data.Lineup;
 import com.nephest.lineup.data.RuleSet;
 import com.nephest.lineup.data.repository.LineupRepository;
@@ -14,9 +15,10 @@ import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.entity.Message;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ImmutableApplicationCommandRequest;
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,7 +32,7 @@ import reactor.core.publisher.Mono;
 public class LineupCreateSlashCommand implements SlashCommand {
 
   public static final String NAME = "lineup-create";
-
+  public static final TemporalUnit REVEAL_AT_OFFSET_UNIT = ChronoUnit.MINUTES;
 
   private final RuleSetRepository ruleSetRepository;
   private final LineupRepository lineupRepository;
@@ -70,10 +72,9 @@ public class LineupCreateSlashCommand implements SlashCommand {
             .build())
         .addOption(ApplicationCommandOptionData.builder()
             .name("reveal-at")
-            .description("Timestamp(seconds)")
-            .type(ApplicationCommandOption.Type.INTEGER.getValue())
+            .description("Accepted values: minutes, duration(1m, 1h20m15s), timestamp(seconds)")
+            .type(ApplicationCommandOption.Type.STRING.getValue())
             .required(true)
-            .minValue(1.0)
             .build());
   }
 
@@ -91,12 +92,20 @@ public class LineupCreateSlashCommand implements SlashCommand {
         ApplicationCommandInteractionOptionValue::asLong,
         null
     );
-    Long revealAt = DiscordBootstrap.getArgument(
+    String revealAtStr = DiscordBootstrap.getArgument(
         evt,
         "reveal-at",
-        ApplicationCommandInteractionOptionValue::asLong,
+        ApplicationCommandInteractionOptionValue::asString,
         null
-    );
+    ).trim();
+
+    OffsetDateTime revealAt;
+    try {
+      revealAt = Util.parse(revealAtStr, REVEAL_AT_OFFSET_UNIT);
+    } catch (DateTimeParseException ex) {
+      return evt.createFollowup("Invalid format: `revealAt` parameter");
+    }
+
 
     RuleSet ruleSet = ruleSetRepository.findById(rulesetId).orElse(null);
     if (ruleSet == null) {
@@ -106,7 +115,7 @@ public class LineupCreateSlashCommand implements SlashCommand {
     Lineup lineup = new Lineup(
         ruleSet,
         size.intValue(),
-        OffsetDateTime.ofInstant(Instant.ofEpochSecond(revealAt), ZoneId.systemDefault()),
+        revealAt,
         new ArrayList<>()
     );
     lineupRepository.save(lineup);
