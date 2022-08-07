@@ -58,7 +58,10 @@ public class DiscordBootstrap {
       = "https://www.nephest.com/sc2/static/icon/misc/favicon-32.png";
   public static final String
       UNEXPECTED_ERROR_MESSAGE
-      = "Unexpected error has occurred. Please report this bug, links are in the bot profile";
+      = "Unexpected error has occurred. "
+      + " Either a new slash command syntax has been deployed and discord haven't updated it "
+      + "yet, or this is a bug. Discord updates their cache within 1 hour. Please report the bug "
+      + "if the error persists, links are in the profile.";
   public static final Map<Region, String> REGION_EMOJIS = Map.of(
       Region.US,
       "\uD83C\uDDFA\uD83C\uDDF8",
