@@ -77,8 +77,8 @@ public class LineupFillSlashCommand implements SlashCommand {
             .build())
         .addOption(ApplicationCommandOptionData.builder()
             .name("lineup")
-            .description("\"pulseId race\" or \"name race\". Players are separated "
-                + "by comma. Pulse ids are verified.")
+            .description("\"raceId\",  \"name race\", or \"characterId race\". Separated by comma."
+                + " Pulse ids are verified.")
             .type(ApplicationCommandOption.Type.STRING.getValue())
             .required(true)
             .build());
@@ -108,8 +108,11 @@ public class LineupFillSlashCommand implements SlashCommand {
   ) throws ParseException {
     player = player.trim();
     String[] split = player.split(" ");
-    if (split.length < 2) {
+    if (split.length < 1) {
       throw new ParseException("Invalid entry: " + player, slot);
+    }
+    if (split.length == 1) {
+      return parsePlayerFromRaceId(discordUserId, lineup, slot, player, conversionService);
     }
 
     String data = split[0].trim();
@@ -118,6 +121,25 @@ public class LineupFillSlashCommand implements SlashCommand {
       throw new ParseException("Invalid race: " + split[1], slot);
     }
     return new Player(discordUserId, lineup, slot, data, race);
+  }
+
+  private static Player parsePlayerFromRaceId(
+      Long discordUserId,
+      Lineup lineup,
+      Integer slot,
+      String player,
+      ConversionService conversionService
+  ) throws ParseException {
+    if (!Util.isInteger(player) || player.length() < 2) {
+      throw new ParseException("Invalid entry: " + player, slot);
+    }
+    String pulseId = player.substring(0, player.length() - 1);
+    Integer raceInt = Integer.valueOf(player.substring(player.length() - 1));
+    Race race = conversionService.convert(raceInt, Race.class);
+    if (race == null) {
+      throw new ParseException("Invalid entry: " + player, slot);
+    }
+    return new Player(discordUserId, lineup, slot, pulseId, race);
   }
 
   @Override

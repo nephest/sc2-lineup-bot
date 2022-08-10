@@ -38,6 +38,7 @@ import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.command.Interaction;
 import discord4j.core.object.entity.User;
 import discord4j.discordjson.json.ApplicationCommandInteractionOptionData;
+import java.text.ParseException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -344,6 +345,46 @@ public class LineupFillSlashCommandTest {
             + "**Lineup**\n" + "Lineup\n\n",
         pair.getSecond()
     );
+  }
+
+  @Test
+  public void testParseLineup() throws ParseException {
+    when(conversionService.convert(any(), eq(Race.class))).thenReturn(Race.TERRAN);
+    Lineup lineup = new Lineup(
+        new RuleSet(),
+        3,
+        OffsetDateTime.now().plusDays(1),
+        new ArrayList<>()
+    );
+    lineup.setId(UUID.randomUUID());
+    Long discordId = 123L;
+    String input = "name t, 987 p, 53";
+    List<Player> players = LineupFillSlashCommand.parseLineup(
+        discordId,
+        lineup,
+        input,
+        conversionService
+    );
+
+    verifyPlayer(players.get(0), 123L, lineup, 1, "name");
+    verifyPlayer(players.get(1), 123L, lineup, 2, "987");
+    verifyPlayer(players.get(2), 123L, lineup, 3, "5");
+
+    ArgumentCaptor<Object> raceCaptor = ArgumentCaptor.forClass(Object.class);
+    verify(conversionService, times(3)).convert(raceCaptor.capture(), eq(Race.class));
+    List<Object> races = raceCaptor.getAllValues();
+    assertEquals("t", races.get(0));
+    assertEquals("p", races.get(1));
+    assertEquals(3, races.get(2));
+  }
+
+  private void verifyPlayer(
+      Player player, Long discordId, Lineup lineup, Integer slot, String data
+  ) {
+    assertEquals(discordId, player.getDiscordUserId());
+    assertEquals(lineup, player.getLineup());
+    assertEquals(slot, player.getSlot());
+    assertEquals(data, player.getData());
   }
 
 }

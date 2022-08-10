@@ -15,14 +15,17 @@ hood.
     * `duration` Offset in duration of hours, minutes, and seconds. Examples: `1h2m3s`, `2h`, `1h15m`.
     * `timestamp(seconds)` Use timestamp converters like [epochconverter](https://www.epochconverter.com/)
       or [unixtimestamp](https://www.unixtimestamp.com/index.php).
-* Fill the lineup with the `lineup-fill` slash command. There are 2 lineup modes
+* Fill the lineup with the `lineup-fill` slash command. There are several lineup modes
     * Plain text. Example: `name z, anotherName t`. The bot will save your lineup as it is without checking it against
       the supplied ruleset.
-    * Pulse id. Example: `1 z, 2 t`. The bot will use the supplied ruleset to verify all players against the
+    * Pulse character id + race. Example: `1 z, 2 t`. The bot will use the supplied ruleset to verify all players
+      against the
       [SC2 Pulse](https://www.nephest.com/sc2) API. You can find pulse ids in the URL. For example
       `https://www.nephest.com/sc2/?type=character&id=236695&m=1#player-stats-mmr`, copy the `id` parameter, in this
       case
       the id is `236695`.
+    * Pulse race id. Go to [SC2 Pulse](https://www.nephest.com/sc2), add teams to the buffer, copy to clipboard->raceId.
+      The bot will verify players.
 * Reveal the lineup with the `lineup-reveal` slash command.
 
 ## Running
