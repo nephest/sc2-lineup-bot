@@ -84,6 +84,42 @@ public class LineupFillSlashCommand implements SlashCommand {
             .build());
   }
 
+  public static List<Player> parseLineup(
+      Long discordUserId, Lineup lineup, String lineupStr, ConversionService conversionService
+  ) throws ParseException {
+    List<Player> players = new ArrayList<>();
+    String[] split = lineupStr.split(",");
+    for (int i = 0; i < split.length; i++) {
+      players.add(parsePlayer(discordUserId, lineup, i + 1, split[i], conversionService));
+    }
+    return players;
+  }
+
+  protected void setLineupFillSlashCommand(LineupFillSlashCommand lineupFillSlashCommand) {
+    this.lineupFillSlashCommand = lineupFillSlashCommand;
+  }
+
+  public static Player parsePlayer(
+      Long discordUserId,
+      Lineup lineup,
+      Integer slot,
+      String player,
+      ConversionService conversionService
+  ) throws ParseException {
+    player = player.trim();
+    String[] split = player.split(" ");
+    if (split.length < 2) {
+      throw new ParseException("Invalid entry: " + player, slot);
+    }
+
+    String data = split[0].trim();
+    Race race = conversionService.convert(split[1].trim(), Race.class);
+    if (race == null) {
+      throw new ParseException("Invalid race: " + split[1], slot);
+    }
+    return new Player(discordUserId, lineup, slot, data, race);
+  }
+
   @Override
   public Mono<Message> handle(ChatInputInteractionEvent evt) {
     Long discordUserId = evt.getInteraction().getUser().getId().asLong();
@@ -114,7 +150,7 @@ public class LineupFillSlashCommand implements SlashCommand {
     //parse lineup
     List<Player> players;
     try {
-      players = parseLineup(discordUserId, lineup, lineupStr);
+      players = parseLineup(discordUserId, lineup, lineupStr, conversionService);
     } catch (ParseException e) {
       String resp = DiscordBootstrap.coloredTextBlock(
           "Invalid lineup. Slot "
@@ -156,38 +192,6 @@ public class LineupFillSlashCommand implements SlashCommand {
         + String.format(DiscordBootstrap.TAG_USER_TEMPLATE, players.get(0).getDiscordUserId())
         + " players**\n"
         + playerResult.getSecond() + "\n");
-  }
-
-  protected void setLineupFillSlashCommand(LineupFillSlashCommand lineupFillSlashCommand) {
-    this.lineupFillSlashCommand = lineupFillSlashCommand;
-  }
-
-  private List<Player> parseLineup(
-      Long discordUserId, Lineup lineup, String lineupStr
-  ) throws ParseException {
-    List<Player> players = new ArrayList<>();
-    String[] split = lineupStr.split(",");
-    for (int i = 0; i < split.length; i++) {
-      players.add(parsePlayer(discordUserId, lineup, i + 1, split[i]));
-    }
-    return players;
-  }
-
-  private Player parsePlayer(
-      Long discordUserId, Lineup lineup, Integer slot, String player
-  ) throws ParseException {
-    player = player.trim();
-    String[] split = player.split(" ");
-    if (split.length < 2) {
-      throw new ParseException("Invalid entry: " + player, slot);
-    }
-
-    String data = split[0].trim();
-    Race race = conversionService.convert(split[1].trim(), Race.class);
-    if (race == null) {
-      throw new ParseException("Invalid race: " + split[1], slot);
-    }
-    return new Player(discordUserId, lineup, slot, data, race);
   }
 
   /**
