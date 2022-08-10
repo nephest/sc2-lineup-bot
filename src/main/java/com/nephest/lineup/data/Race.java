@@ -37,7 +37,7 @@ public enum Race {
         return race;
       }
     }
-    throw new IllegalArgumentException("Invalid id");
+    return null;
   }
 
   public static Race fromPrefix(String name) {

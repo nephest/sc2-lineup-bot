@@ -6,6 +6,7 @@ package com.nephest.lineup;
 
 import com.nephest.lineup.config.GlobalRestTemplateCustomizer;
 import com.nephest.lineup.discord.DiscordBootstrap;
+import com.nephest.lineup.discord.convert.IntegerToRaceConverter;
 import com.nephest.lineup.discord.convert.LineupPlayerDataToStringConverter;
 import com.nephest.lineup.discord.convert.LineupToStringConverter;
 import com.nephest.lineup.discord.convert.OffsetDateTimeToStringConverter;
@@ -40,6 +41,7 @@ public class Main extends SpringBootServletInitializer {
     service.addConverter(new RuleSetToStringConverter());
     service.addConverter(new LineupToStringConverter(offsetDateTimeToStringConverter));
     service.addConverter(new StringToRaceConverter());
+    service.addConverter(new IntegerToRaceConverter());
     service.addConverter(new LineupPlayerDataToStringConverter(discordBootstrap));
     service.addConverter(offsetDateTimeToStringConverter);
     return service;
