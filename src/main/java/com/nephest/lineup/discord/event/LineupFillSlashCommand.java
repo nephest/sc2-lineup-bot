@@ -18,6 +18,7 @@ import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.entity.Message;
+import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ImmutableApplicationCommandRequest;
 import java.text.ParseException;
@@ -208,12 +209,16 @@ public class LineupFillSlashCommand implements SlashCommand {
     if (playerResult.getFirst()) {
       playerRepository.saveAllAndFlush(players);
     }
-    return evt.createFollowup(result
-        + LineupUtil.getHeader(lineup, conversionService)
-        + "**"
-        + String.format(DiscordBootstrap.TAG_USER_TEMPLATE, players.get(0).getDiscordUserId())
-        + " players**\n"
-        + playerResult.getSecond() + "\n");
+
+    EmbedCreateSpec embed = EmbedCreateSpec.builder()
+        .description(result
+            + LineupUtil.getHeader(lineup, conversionService)
+            + "**"
+            + String.format(DiscordBootstrap.TAG_USER_TEMPLATE, players.get(0).getDiscordUserId())
+            + " players**\n"
+            + playerResult.getSecond() + "\n")
+        .build();
+    return evt.createFollowup().withEmbeds(embed);
   }
 
   /**

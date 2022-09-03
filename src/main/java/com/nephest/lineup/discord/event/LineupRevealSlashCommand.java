@@ -14,6 +14,7 @@ import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.entity.Message;
+import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ImmutableApplicationCommandRequest;
 import java.time.OffsetDateTime;
@@ -109,7 +110,10 @@ public class LineupRevealSlashCommand implements SlashCommand {
         ).getSecond()
             + "\n")
         .collect(Collectors.joining("\n"));
-    return evt.createFollowup(response);
+    EmbedCreateSpec embed = EmbedCreateSpec.builder()
+        .description(response)
+        .build();
+    return evt.createFollowup().withEmbeds(embed);
   }
 
   @Override

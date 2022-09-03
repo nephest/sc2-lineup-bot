@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -37,6 +38,8 @@ import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.command.Interaction;
 import discord4j.core.object.entity.User;
+import discord4j.core.spec.EmbedCreateSpec;
+import discord4j.core.spec.InteractionFollowupCreateMono;
 import discord4j.discordjson.json.ApplicationCommandInteractionOptionData;
 import java.text.ParseException;
 import java.time.OffsetDateTime;
@@ -208,9 +211,22 @@ public class LineupFillSlashCommandTest {
       int gamesMin, int gamesPlayed, String header, PlayerStatus status
   ) {
     stubPulse(gamesMin, gamesPlayed, status != PlayerStatus.UNKNOWN);
+    InteractionFollowupCreateMono followup = mock(InteractionFollowupCreateMono.class);
+    when(evt.createFollowup()).thenReturn(followup);
 
     cmd.handle(evt);
-    verify(evt).createFollowup(responseCaptor.capture());
+    ArgumentCaptor<EmbedCreateSpec> embedCaptor = ArgumentCaptor.forClass(EmbedCreateSpec.class);
+    verify(followup).withEmbeds(embedCaptor.capture());
+    String response = embedCaptor.getValue().description().toOptional().orElseThrow();
+    header = DiscordBootstrap.coloredTextBlock(header, status != PlayerStatus.ERROR);
+    assertEquals(header
+
+        + "**Ruleset**\n" + "RuleSet\n\n"
+
+        + "**Lineup**\n" + "Lineup\n\n"
+
+        + "**<@987> players**\n" + "LineupPlayerData\n", response);
+
     verify(conversionService, times(3)).convert(
         lineupPlayerDataArgumentCaptor.capture(),
         eq(String.class)
@@ -247,16 +263,6 @@ public class LineupFillSlashCommandTest {
       default:
         throw new IllegalArgumentException("Unsupported status " + status);
     }
-
-    String response = responseCaptor.getValue();
-    header = DiscordBootstrap.coloredTextBlock(header, status != PlayerStatus.ERROR);
-    assertEquals(header
-
-        + "**Ruleset**\n" + "RuleSet\n\n"
-
-        + "**Lineup**\n" + "Lineup\n\n"
-
-        + "**<@987> players**\n" + "LineupPlayerData\n", response);
   }
 
   @Test
